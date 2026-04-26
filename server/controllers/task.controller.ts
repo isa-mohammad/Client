@@ -4,8 +4,19 @@ import Task from '../models/task.model.js';
 // GET all tasks
 export const getTasks = async (req: Request, res: Response) => {
   try {
+    const { completed, name } = req.query;
+    let query: any = {};
+
+    if (completed !== undefined) {
+      query.completed = completed === 'true';
+    }
+
+    if (name) {
+      query.title = { $regex: name as string, $options: 'i' };
+    }
+
     // Relationship Logic: Only fetch tasks that belong to the logged-in user
-    const tasks = await Task.find({ user: (req as any).user._id }).populate('user', 'email') // Space-separated string for multiple fields
+    const tasks = await Task.find({ user: (req as any).user._id, ...query }).populate('user', '-password'); // Space-separated string for multiple fields
     res.status(200).json({ tasks });
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });

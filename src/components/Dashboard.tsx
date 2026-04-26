@@ -1,28 +1,27 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { debounce } from 'lodash';
 import { useTasks } from '../hooks/useTasks';
 import { useAuthStore } from '../store/useAuthStore';
 import TaskCard from './TaskCard';
 import type { TaskStatus } from '../types';
 
 const Dashboard: React.FC = () => {
-  const { data: tasks, loading, error, toggleTask, addTask, refresh } = useTasks();
+  const { data: tasks, loading, error, toggleTask, addTask, fetchTasksWithFilters, refresh } = useTasks();
   const logout = useAuthStore((state) => state.logout);
   const [filter, setFilter] = useState<TaskStatus>('all');
   const [search, setSearch] = useState('');
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
-  // Mid-level Optimization: useMemo for heavy filtering/searching
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      const matchesFilter = 
-        filter === 'all' ? true :
-        filter === 'completed' ? task.completed : !task.completed;
-      
-      const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
-      
-      return matchesFilter && matchesSearch;
-    });
-  }, [tasks, filter, search]);
+  const debouncedFetch = debounce((name: string, status: TaskStatus) => {
+      fetchTasksWithFilters(name, status);
+    }, 300)
+
+  useEffect(() => {
+    debouncedFetch(search, filter);
+    return () => {
+      debouncedFetch.cancel();
+    };
+  }, [search, filter, debouncedFetch]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
@@ -95,8 +94,8 @@ const Dashboard: React.FC = () => {
       <div className="task-grid">
         {loading ? (
           <div className="loader">Analyzing data stream...</div>
-        ) : filteredTasks.length > 0 ? (
-          filteredTasks.slice(0, 12).map((task) => (
+        ) : tasks.length > 0 ? (
+          tasks.slice(0, 12).map((task) => (
             <TaskCard key={task._id} task={task} onToggle={toggleTask} />
           ))
         ) : (

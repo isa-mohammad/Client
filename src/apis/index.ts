@@ -16,8 +16,11 @@ const logOut = async () => {
     auth.logout();
 }
 
-const fetchTasks = async () => {
-    const response = await axiosInstance.get('/tasks');
+const fetchTasks = async (name?: string, status?: string) => {
+    const params: { name?: string, status?: string } = {};
+    if (name) params.name = name;
+    if (status) params.status = status;
+    const response = await axiosInstance.get('/tasks', { params });
     return response.data;
 }
 

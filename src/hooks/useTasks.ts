@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Task, TasksState } from '../types';
+import type { Task, TasksState, TaskStatus } from '../types';
 import { useAuthStore } from '../store/useAuthStore';
 
 export const useTasks = () => {
@@ -28,6 +28,37 @@ export const useTasks = () => {
       
       const data = await response.json();
       
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch tasks');
+      }
+
+      // data is wrapped in { tasks: [...] } based on our controller
+      const tasksArray = data.tasks || data;
+
+      setState({ data: tasksArray, loading: false, error: null });
+    } catch (err) {
+      setState({ data: [], loading: false, error: (err as Error).message });
+    }
+  }, [user?.token]);
+
+  const fetchTasksWithFilters = useCallback(async (name: string, status: TaskStatus) => {
+    if (!user?.token) return;
+
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const params = new URLSearchParams();
+      if (name) params.append('name', name);
+      if (status !== 'all') params.append('completed', status === 'completed' ? 'true' : 'false');
+      
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const response = await fetch(`http://localhost:5000/api/tasks${queryString}`, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`
+        }
+      });
+
+      const data = await response.json();
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to fetch tasks');
       }
@@ -99,5 +130,5 @@ export const useTasks = () => {
     }
   };
 
-  return { ...state, toggleTask, addTask, refresh: fetchTasks };
+  return { ...state, toggleTask, addTask, fetchTasksWithFilters, refresh: fetchTasks };
 };
